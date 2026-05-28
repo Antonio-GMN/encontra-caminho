@@ -1,113 +1,91 @@
 import { biblioteca } from "./dados.js";
 import type { BibliotecaType } from "./dados.js";
+import { calculaPesoPerigo, reconstruirCaminho } from "./helper.js";
 
+function achaMelhorCaminho(grafo: BibliotecaType, inicio: string, fim: string) {
+  const custos: Record<string, number> = {};
+  const anteriores: Record<string, string | null> = {};
+  const vertices: string[] = Object.keys(grafo);
+  const visitados = new Set<string>();
 
-function achaMelhorCaminho(
-    grafo: BibliotecaType,
-    inicio: string,
-    fim: string
-) {
+  // Inicialização
+  for (const nodo of vertices) {
+    custos[nodo] = Infinity;
+    anteriores[nodo] = null;
+  }
 
-    const distancias: Record<string, number> = {};
-    const anteriores: Record<string, string | null> = {};
-    const vertices: string[] = Object.keys(grafo);
-    const visitados: string[] = [];
+  custos[inicio] = 0;
 
-    // Inicialização
+  while (visitados.size < vertices.length) {
+    let nodoAtual: string | null = null;
+
+    let menorCusto = Infinity;
+
+    // Procura o nodo com menor custo
     for (const nodo of vertices) {
-        distancias[nodo] = Infinity;
-        anteriores[nodo] = null;
+      if (visitados.has(nodo)) continue;
+
+      const custoNodo = custos[nodo];
+      if (custoNodo === undefined)
+        throw new Error(`Custo do nodo "${nodo}" não encontrado.`);
+
+      if (custoNodo < menorCusto) {
+        menorCusto = custoNodo;
+
+        nodoAtual = nodo;
+      }
     }
 
-    distancias[inicio] = 0;
+    // Não encontrou caminho
+    if (nodoAtual === null) break;
 
-    while (visitados.length < vertices.length) {
+    // Chegou ao destino
+    if (nodoAtual === fim) break;
 
-        let nodoAtual: string | null = null;
-        let menorDistancia = Infinity;
+    visitados.add(nodoAtual);
 
-        // Encontrar o nodo não visitado com menor distância
-        for (const nodo of vertices) {
-            if(visitados.includes(nodo)) continue;
+    // Vizinhos do nodo atual
+    const vizinhos = grafo[nodoAtual];
+    if (!vizinhos) continue;
 
-            const distanciaNodo = distancias[nodo];
+    // Percorre vizinhos
+    for (const vizinho of Object.keys(vizinhos)) {
+      if (vizinho === anteriores[nodoAtual]) continue;
+      const aresta = vizinhos[vizinho];
+      if (!aresta) continue;
 
-            if (
-                distanciaNodo !== undefined &&
-                !distanciaNodo !== undefined &&
-                distanciaNodo < menorDistancia
-            ) {
-                menorDistancia = distanciaNodo;
-                nodoAtual = nodo;
-            }
-        }
+      const custoAtual = custos[nodoAtual];
 
-        // Não encontrou mais caminhos
-        if (nodoAtual === null) break;
+      if (custoAtual === undefined)
+        throw new Error(`Custo do nodo "${nodoAtual}" não encontrado.`);
 
-        // Chegou ao destino
-        if (nodoAtual === fim) break;
+      const pesoPerigo = calculaPesoPerigo(aresta.perigo);
 
-        visitados.push(nodoAtual);
+      const custoAresta = aresta.distancia + aresta.perigo * pesoPerigo;
 
-        // Pega os vizinhos do nodo atual
-        const vizinhos = grafo[nodoAtual];
+      const novoCusto = custoAtual + custoAresta;
 
-        // Se os visinhos não existirem, continua para o próximo nodo   
-        if (!vizinhos) continue;
+      const custoVizinho = custos[vizinho];
+      if (custoVizinho === undefined)
+        throw new Error(`Custo do nodo "${vizinho}" não encontrado.`);
 
-        // Percorre os vizinhos
-        for (const vizinho of Object.keys(vizinhos)) {
+      // Relaxamento
+      if (novoCusto < custoVizinho) {
+        custos[vizinho] = novoCusto;
 
-            const peso = vizinhos[vizinho];
-
-            if (peso === undefined) continue;
-
-            const distanciaAtual = distancias[nodoAtual];
-
-            if (distanciaAtual === undefined) continue;
-
-            const novaDistancia =
-                distanciaAtual + peso;
-
-            const distanciaVizinho =
-                distancias[vizinho];
-
-            // Relaxamento
-            if (
-                distanciaVizinho !== undefined &&
-                novaDistancia < distanciaVizinho
-            ) {
-
-                distancias[vizinho] =
-                    novaDistancia;
-
-                // Guarda o caminho
-                anteriores[vizinho] =
-                    nodoAtual;
-            }
-        }
+        anteriores[vizinho] = nodoAtual;
+      }
     }
+  }
 
-    // Reconstrução do caminho
-    const caminho: string[] = [];
+  const melhorCaminho = reconstruirCaminho(anteriores, fim);
 
-    let atual: string | null = fim;
-
-    while (atual !== null) {
-
-        caminho.unshift(atual);
-
-        atual = anteriores[atual] ?? null;
-    }
-
-    return {
-        distancia: distancias[fim],
-        caminho
-    };
+  return `
+    Custo Total: ${custos[fim]}
+    Melhor Caminho: "${melhorCaminho}"
+  `;
 }
 
-const resultado =
-    achaMelhorCaminho(biblioteca, "A", "E");
+const resultado = achaMelhorCaminho(biblioteca, "A", "F");
 
 console.log(resultado);
